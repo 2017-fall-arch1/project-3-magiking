@@ -13,6 +13,7 @@
 #include <p2switches.h>
 #include <shape.h>
 #include <abCircle.h>
+#include "pong.h"
 
 #define GREEN_LED BIT6
 
@@ -73,14 +74,14 @@ typedef struct MovLayer_s {
 } MovLayer;
 
 /* initial value of {0,0} will be overwritten */
-MovLayer ml0 = { &layerBall, {3,3}, 0 }; 
+MovLayer ml_ball = { &layerBall, {3,3}, 0 }; 
 
 /* paddle mov layers */
-MovLayer plU = { &layerPl, {0,-3}, 0 }; 
-MovLayer plD = { &layerPl, {0,3}, 0 }; 
+MovLayer ml_plU = { &layerPl, {0,-3}, 0 }; 
+MovLayer ml_plD = { &layerPl, {0,3}, 0 }; 
 
-MovLayer prU = { &layerPr, {0,-3}, 0 }; 
-MovLayer prD = { &layerPr, {0,3}, 0 }; 
+MovLayer ml_prU = { &layerPr, {0,-3}, 0 }; 
+MovLayer ml_prD = { &layerPr, {0,3}, 0 }; 
 
 void movLayerDraw(MovLayer *movLayers, Layer *layers)
 {
@@ -127,23 +128,33 @@ void movLayerDraw(MovLayer *movLayers, Layer *layers)
  *  \param ml The moving shape to be advanced
  *  \param fence The region which will serve as a boundary for ml
  */
-void mlAdvance(MovLayer *ml, Region *fence)
+void mlAdvance(MovLayer *ml, Region *fence, unsigned int acceleration)
 {
-  Vec2 newPos;
-  u_char axis;
-  Region shapeBoundary;
-  for (; ml; ml = ml->next) {
-    vec2Add(&newPos, &ml->layer->posNext, &ml->velocity);
-    abShapeGetBounds(ml->layer->abShape, &newPos, &shapeBoundary);
-    for (axis = 0; axis < 2; axis ++) {
-      if ((shapeBoundary.topLeft.axes[axis] < fence->topLeft.axes[axis]) ||
-	  (shapeBoundary.botRight.axes[axis] > fence->botRight.axes[axis]) ) {
-	int velocity = ml->velocity.axes[axis] = -ml->velocity.axes[axis];
-	newPos.axes[axis] += (2*velocity);
-      }	/**< if outside of fence */
-    } /**< for axis */
-    ml->layer->posNext = newPos;
-  } /**< for ml */
+    Vec2 newPos;
+    u_char axis;
+    Region shapeBoundary;
+    for (; ml; ml = ml->next) {
+        vec2Add(&newPos, &ml->layer->posNext, &ml->velocity);
+        abShapeGetBounds(ml->layer->abShape, &newPos, &shapeBoundary);
+        for (axis = 0; axis < 2; axis ++) {
+            if ((shapeBoundary.topLeft.axes[axis] < fence->topLeft.axes[axis]) ||
+                    (shapeBoundary.botRight.axes[axis] > fence->botRight.axes[axis]) ) {
+                int velocity;
+                if(acceleration != STOP)
+                {
+                    velocity = ml->velocity.axes[axis] = REV * (ml->velocity.axes[axis]);
+                    newPos.axes[axis] += (2*velocity);
+                }
+                else    /*don't change the paddle's velocity vector during calc*/
+                {
+                    velocity = REV * (ml->velocity.axes[axis]);
+                    newPos.axes[axis] += (velocity);   /*< don't bounce, just don't move past bound*/
+                } 
+                //newPos.axes[axis] += (2*velocity);
+            }	/**< if outside of fence */
+        } /**< for axis */
+        ml->layer->posNext = newPos;
+    } /**< for ml */
 }
 
 
@@ -159,20 +170,20 @@ void
 movePaddles(){
     unsigned int sw = p2sw_read();
     if(!(BIT0 & sw)){
-        movLayerDraw(&plU, &layerPl);  /** So, of course you have to draw the layer before you can advance the screen */
-        mlAdvance(&plU, &fieldFence);
+        movLayerDraw(&ml_plU, &layerPl);  /** So, of course you have to draw the layer before you can advance the screen */
+        mlAdvance(&ml_plU, &fieldFence, STOP);
     }
     if(!(BIT1 & sw)){
-        movLayerDraw(&plD, &layerPl);  /** So, of course you have to draw the layer before you can advance the screen */
-        mlAdvance(&plD, &fieldFence);
+        movLayerDraw(&ml_plD, &layerPl);  /** So, of course you have to draw the layer before you can advance the screen */
+        mlAdvance(&ml_plD, &fieldFence, STOP);
     }
     if(!(BIT2 & sw)){
-        movLayerDraw(&prU, &layerPl);  /** So, of course you have to draw the layer before you can advance the screen */
-        mlAdvance(&prU, &fieldFence);
+        movLayerDraw(&ml_prU, &layerPl);  /** So, of course you have to draw the layer before you can advance the screen */
+        mlAdvance(&ml_prU, &fieldFence, STOP);
     }
     if(!(BIT3 & sw)){
-        movLayerDraw(&prD, &layerPl);  /** So, of course you have to draw the layer before you can advance the screen */
-        mlAdvance(&prD, &fieldFence);
+        movLayerDraw(&ml_prD, &layerPl);  /** So, of course you have to draw the layer before you can advance the screen */
+        mlAdvance(&ml_prD, &fieldFence, STOP);
     }
     
 }
@@ -211,7 +222,7 @@ void main()
     }
     P1OUT |= GREEN_LED;       /**< Green led on when CPU on */
     redrawScreen = 0;
-    movLayerDraw(&ml0, &layerBall);
+    movLayerDraw(&ml_ball, &layerBall);
   }
 }
 
@@ -222,7 +233,7 @@ void wdt_c_handler()
   P1OUT |= GREEN_LED;		      /**< Green LED on when cpu on */
   count ++;
   if (count == 15) {
-    mlAdvance(&ml0, &fieldFence);
+    mlAdvance(&ml_ball, &fieldFence, REV);
     redrawScreen = 1;
     count = 0;
   } 
