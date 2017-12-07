@@ -19,7 +19,7 @@
 
 #define GREEN_LED BIT6
 
-#define MAX_SCORE 8
+#define MAX_SCORE 5
 
 #define DELAY 500000
 
@@ -230,8 +230,11 @@ void mlBallAdvance(MovLayer *ml_ball, MovLayer *ml_plU, MovLayer *ml_prU, Region
 		    if (++pr_score == MAX_SCORE)
 		    {
 			/* draw pr winner */
-			winner[7] = "2";
-			state_advance();
+			winner[7] = '2';
+                        winscreen();
+			int velocity = ml_ball->velocity.axes[axis] =  -ml_ball->velocity.axes[axis];
+			newPos_ball.axes[axis] += (2*velocity);
+			//state_advance();
 			break;
 			//break;
 		    }
@@ -250,8 +253,11 @@ void mlBallAdvance(MovLayer *ml_ball, MovLayer *ml_plU, MovLayer *ml_prU, Region
 		    if (++pl_score == MAX_SCORE)
 		    {
 			/* draw pr winner */
-			winner[7] = "1";
-			state_advance();
+			winner[7] = '1';
+                        winscreen();
+			int velocity = ml_ball->velocity.axes[axis] =  -ml_ball->velocity.axes[axis];
+			newPos_ball.axes[axis] += (2*velocity);
+			//state_advance();
 			break;
 		    }
                     buzzer_set_period(R_F_PERIOD);
@@ -349,25 +355,25 @@ startscreen()
 	if(!(BIT0 & P2IN)){
 	    ml_ball.velocity.axes[0] = 4;
 	    ml_ball.velocity.axes[0] = 4;
-	    state_advance();
+	    //state_advance();
 	    break;
 	}
 	if(!(BIT1 & P2IN)){
 	    ml_ball.velocity.axes[0] = 4;
 	    ml_ball.velocity.axes[0] = 4;
-	    state_advance();
+	    //state_advance();
 	    break;
 	}
 	if(!(BIT2 & P2IN)){
 	    ml_ball.velocity.axes[0] = 4;
 	    ml_ball.velocity.axes[0] = 4;
-	    state_advance();
+	    //state_advance();
 	    break;
 	}
 	if(!(BIT3 & P2IN)){
 	    ml_ball.velocity.axes[0] = 4;
 	    ml_ball.velocity.axes[0] = 4;
-	    state_advance();
+	    //state_advance();
 	    break;
     	} 
     }
@@ -383,13 +389,20 @@ winscreen()
     clearScreen(COLOR_BLUE);
     drawString5x7(screenWidth/2 -10 , 25, "PONG", COLOR_BLACK, COLOR_BLUE);
     drawString5x7(20, 35, "The winner is:", COLOR_BLACK, COLOR_BLUE);
-    drawString5x7(20, 35, winner, COLOR_BLACK, COLOR_BLUE);
-    for(;;)	
-	if(!((BIT0 | BIT1 | BIT2 | BIT3) & P2IN)){
+    drawString5x7(20, 45, winner, COLOR_BLACK, COLOR_BLUE);
+    for(;;){	
+	if(!(BIT0 & P2IN)){
 	    pl_score = pr_score = 0;
-	    state_advance();
+	    //state_advance();
 	    break;
 	}
+    }
+    //Vec2 newPos_ball = {(screenWidth/2)+10, (screenHeight/2)+5};
+    //&ml_ball->layer->posNext = newPos_ball;
+    clearScreen(COLOR_BLACK);
+    layerDraw(&layerBall);
+    scoreDraw();
+    //main();
     //maybe color screen black again?
 }
 u_int bgColor = COLOR_BLACK;     /**< The background color */
