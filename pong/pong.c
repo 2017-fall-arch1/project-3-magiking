@@ -15,10 +15,11 @@
 #include <abCircle.h>
 #include "pong.h"
 #include "buzzer.h"
+#include "stateMachines.h"
 
 #define GREEN_LED BIT6
 
-#define MAX_SCORE 5
+#define MAX_SCORE 8
 
 #define DELAY 500000
 
@@ -27,6 +28,11 @@
 #define R_P_PERIOD 4000
 #define R_F_PERIOD 1500
 
+static int pl_score = 0;
+static char pl_score_string[1];
+static int pr_score = 0;
+static char pr_score_string[1];
+static char winner[] = "player 2";
 
 AbRect ball    = {abRectGetBounds, abRectCheck, {4,4}}; /**< 10x10 rectangle */
 AbRect paddle2 = {abRectGetBounds, abRectCheck, {4,14}}; /**< 10x10 rectangle */
@@ -131,10 +137,6 @@ void movLayerDraw(MovLayer *movLayers, Layer *layers)
 }	  
 
 
-int pl_score = 0;
-char pl_score_string[1];
-int pr_score = 0;
-char pr_score_string[1];
 
 void
 scoreDraw()
@@ -225,7 +227,15 @@ void mlBallAdvance(MovLayer *ml_ball, MovLayer *ml_plU, MovLayer *ml_prU, Region
                 if (axis == 0)         /**< only care about left/right wall*/
                 {
                     //do thing for left side score.
-		    pr_score = (pr_score + 1) % MAX_SCORE;
+		    if (++pr_score == MAX_SCORE)
+		    {
+			/* draw pr winner */
+			winner[7] = "2";
+			state_advance();
+			break;
+			//break;
+		    }
+
                     buzzer_set_period(L_F_PERIOD);
                     __delay_cycles(DELAY); //leave the buzzer on
                 }
@@ -237,7 +247,13 @@ void mlBallAdvance(MovLayer *ml_ball, MovLayer *ml_plU, MovLayer *ml_prU, Region
                 if (axis == 0) 
                 {
                     //do thing for right side score.
-		    pl_score = (pl_score + 1) % MAX_SCORE;
+		    if (++pl_score == MAX_SCORE)
+		    {
+			/* draw pr winner */
+			winner[7] = "1";
+			state_advance();
+			break;
+		    }
                     buzzer_set_period(R_F_PERIOD);
                     __delay_cycles(DELAY); //leave the buzzer on
                 }
@@ -293,7 +309,7 @@ void mlBallAdvance(MovLayer *ml_ball, MovLayer *ml_plU, MovLayer *ml_prU, Region
 Region fieldFence;		/**< fence around playing field  */
 
 /**
- * Does something if switch is pressed.
+ * Reads switch inputs and move's paddles accordingly
  */
 void
 movePaddles(){
@@ -317,6 +333,65 @@ movePaddles(){
     
 }
 
+/**
+ * Draw start screen
+ */
+void
+startscreen()
+{
+    clearScreen(COLOR_BLUE);
+    drawString5x7(screenWidth/2 -10 , 25, "PONG", COLOR_BLACK, COLOR_BLUE);
+    drawString5x7(20, 35, "Press any button", COLOR_BLACK, COLOR_BLUE);
+    //drawString5x7(5, 35, "Press any button to start", COLOR_BLACK, COLOR_BLUE);
+    for(;;)
+    {
+	
+	if(!(BIT0 & P2IN)){
+	    ml_ball.velocity.axes[0] = 4;
+	    ml_ball.velocity.axes[0] = 4;
+	    state_advance();
+	    break;
+	}
+	if(!(BIT1 & P2IN)){
+	    ml_ball.velocity.axes[0] = 4;
+	    ml_ball.velocity.axes[0] = 4;
+	    state_advance();
+	    break;
+	}
+	if(!(BIT2 & P2IN)){
+	    ml_ball.velocity.axes[0] = 4;
+	    ml_ball.velocity.axes[0] = 4;
+	    state_advance();
+	    break;
+	}
+	if(!(BIT3 & P2IN)){
+	    ml_ball.velocity.axes[0] = 4;
+	    ml_ball.velocity.axes[0] = 4;
+	    state_advance();
+	    break;
+    	} 
+    }
+    //maybe color screen black again?
+}
+
+/**
+ * Draw win screen
+ */
+void
+winscreen()
+{
+    clearScreen(COLOR_BLUE);
+    drawString5x7(screenWidth/2 -10 , 25, "PONG", COLOR_BLACK, COLOR_BLUE);
+    drawString5x7(20, 35, "The winner is:", COLOR_BLACK, COLOR_BLUE);
+    drawString5x7(20, 35, winner, COLOR_BLACK, COLOR_BLUE);
+    for(;;)	
+	if(!((BIT0 | BIT1 | BIT2 | BIT3) & P2IN)){
+	    pl_score = pr_score = 0;
+	    state_advance();
+	    break;
+	}
+    //maybe color screen black again?
+}
 u_int bgColor = COLOR_BLACK;     /**< The background color */
 int redrawScreen = 1;           /**< Boolean for whether screen needs to be redrawn */
 
@@ -336,6 +411,8 @@ void main()
   p2sw_init(15);                /** initialize all switches */
 
   shapeInit();
+
+  startscreen();
 
   layerInit(&layerBall);
   layerDraw(&layerBall);
@@ -371,6 +448,7 @@ void wdt_c_handler()
   count ++;
   if (count == 15) {
     mlBallAdvance(&ml_ball, &ml_plU, &ml_prU, &fieldFence);
+    /* if (START || WIN) & p2sw_read()*/
     redrawScreen = 1;
     count = 0;
   } 
