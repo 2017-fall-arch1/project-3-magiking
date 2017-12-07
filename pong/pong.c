@@ -16,6 +16,7 @@
 #include "pong.h"
 #include "buzzer.h"
 #include "stateMachines.h"
+#include "movePaddles.s"
 
 #define GREEN_LED BIT6
 
