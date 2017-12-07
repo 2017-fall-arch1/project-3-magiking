@@ -391,7 +391,7 @@ winscreen()
     drawString5x7(20, 35, "The winner is:", COLOR_BLACK, COLOR_BLUE);
     drawString5x7(20, 45, winner, COLOR_BLACK, COLOR_BLUE);
     for(;;){	
-	if(!(BIT0 & P2IN)){
+	if(!(( BIT0 | BIT1 ) & P2IN)){
 	    pl_score = pr_score = 0;
 	    //state_advance();
 	    break;
