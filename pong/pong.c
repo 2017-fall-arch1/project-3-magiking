@@ -33,12 +33,12 @@ Layer fieldLayer = {		/* playing field as a layer */
   (AbShape *) &fieldOutline,
   {screenWidth/2, screenHeight/2},/**< initial position */
   {0,0}, {0,0},				    /* last & next pos */
-  COLOR_BLACK,
+  COLOR_WHITE,
   0,
 };
 
 
-Layer layerPr = {		/**< Layer with paddle 2*/
+Layer layerPr = {		/**< Layer with right paddle 2*/
   (AbShape *)&paddle2,
   {(screenWidth)-10, (screenHeight/2)}, /**< middle right*/
   {0,0}, {0,0},				    /* last & next pos */
@@ -47,7 +47,7 @@ Layer layerPr = {		/**< Layer with paddle 2*/
 };
 
 
-Layer layerPl = {		/**< Layer with paddle1*/
+Layer layerPl = {		/**< Layer with left paddle1*/
   (AbShape *)&paddle1,
   {10, screenHeight/2}, /**< middle left */
   {0,0}, {0,0},				    /* last & next pos */
@@ -74,14 +74,14 @@ typedef struct MovLayer_s {
 } MovLayer;
 
 /* initial value of {0,0} will be overwritten */
-MovLayer ml_ball = { &layerBall, {3,3}, 0 }; 
+MovLayer ml_ball = { &layerBall, {4,4}, 0 }; 
 
 /* paddle mov layers */
-MovLayer ml_plU = { &layerPl, {0,-3}, 0 }; 
-MovLayer ml_plD = { &layerPl, {0,3}, 0 }; 
+MovLayer ml_plU = { &layerPl, {0,-5}, 0 }; 
+MovLayer ml_plD = { &layerPl, {0,5}, 0 }; 
 
-MovLayer ml_prU = { &layerPr, {0,-3}, 0 }; 
-MovLayer ml_prD = { &layerPr, {0,3}, 0 }; 
+MovLayer ml_prU = { &layerPr, {0,-5}, 0 }; 
+MovLayer ml_prD = { &layerPr, {0,5}, 0 }; 
 
 void movLayerDraw(MovLayer *movLayers, Layer *layers)
 {
@@ -120,45 +120,121 @@ void movLayerDraw(MovLayer *movLayers, Layer *layers)
   } // for moving layer being updated
 }	  
 
-
-//Region fence = {{10,30}, {SHORT_EDGE_PIXELS-10, LONG_EDGE_PIXELS-10}}; /**< Create a fence region */
-
-/** Advances a moving shape within a fence
- *  
- *  \param ml The moving shape to be advanced
- *  \param fence The region which will serve as a boundary for ml
- */
-void mlAdvance(MovLayer *ml, Region *fence, unsigned int acceleration)
+void
+mlPaddleAdvance(MovLayer *ml, Region *fence)
 {
     Vec2 newPos;
     u_char axis;
     Region shapeBoundary;
-    for (; ml; ml = ml->next) {
+    for (; ml; ml = ml->next) 
+    {
         vec2Add(&newPos, &ml->layer->posNext, &ml->velocity);
         abShapeGetBounds(ml->layer->abShape, &newPos, &shapeBoundary);
-        for (axis = 0; axis < 2; axis ++) {
+        for (axis = 0; axis < 2; axis ++) 
+        {
             if ((shapeBoundary.topLeft.axes[axis] < fence->topLeft.axes[axis]) ||
-                    (shapeBoundary.botRight.axes[axis] > fence->botRight.axes[axis]) ) {
-                int velocity;
-                if(acceleration != STOP)
-                {
-                    velocity = ml->velocity.axes[axis] = REV * (ml->velocity.axes[axis]);
-                    newPos.axes[axis] += (2*velocity);
-                }
-                else    /*don't change the paddle's velocity vector during calc*/
-                {
-                    velocity = REV * (ml->velocity.axes[axis]);
-                    newPos.axes[axis] += (velocity);   /*< don't bounce, just don't move past bound*/
-                } 
-                //newPos.axes[axis] += (2*velocity);
+                    (shapeBoundary.botRight.axes[axis] > fence->botRight.axes[axis]) ) 
+            { 
+                int velocity = REV * (ml->velocity.axes[axis]);
+                newPos.axes[axis] += (velocity);   /*< don't bounce, just don't move past bound*/ 
             }	/**< if outside of fence */
         } /**< for axis */
         ml->layer->posNext = newPos;
     } /**< for ml */
+
+}
+//Region fence = {{10,30}, {SHORT_EDGE_PIXELS-10, LONG_EDGE_PIXELS-10}}; /**< Create a fence region */
+
+/** Advances the ball within a fence
+ *  
+ *  \param ml The moving shape to be advanced
+ *  \param fence The region which will serve as a boundary for ml
+ */
+void mlBallAdvance(MovLayer *ml_ball, MovLayer *ml_plU, MovLayer *ml_prU, Region *fence)
+{
+    Vec2 newPos_ball;
+    Vec2 newPos_pl;
+    Vec2 newPos_pr;
+
+    u_char axis;
+
+    Region ballBoundary;
+    Region plBoundary;
+    Region prBoundary;
+
+    for (; ml_ball; ml_ball = ml_ball->next) {
+        vec2Add(&newPos_ball, &ml_ball->layer->posNext, &ml_ball->velocity);
+        abShapeGetBounds(ml_ball->layer->abShape, &newPos_ball, &ballBoundary);
+
+        vec2Add(&newPos_pl, &ml_plU->layer->posNext, &ml_plU->velocity);
+        abShapeGetBounds(ml_plU->layer->abShape, &newPos_pl, &plBoundary);           /** get left paddle boundaries */
+
+        vec2Add(&newPos_pr, &ml_prU->layer->posNext, &ml_prU->velocity);
+        abShapeGetBounds(ml_prU->layer->abShape, &newPos_pr, &prBoundary);           /** get left paddle boundaries */
+        for (axis = 0; axis < 2; axis ++) 
+        {
+            /** left_fence should act as a bool here. If we go into the inner section of this if, then it hit some part of the fence */
+            if ( (ballBoundary.topLeft.axes[axis] < fence->topLeft.axes[axis])) 
+            {
+                if (axis == 0)         /**< only care about left/right wall*/
+                {
+                    //do thing for left side score.
+                }
+                int velocity = ml_ball->velocity.axes[axis] =  -ml_ball->velocity.axes[axis];
+                newPos_ball.axes[axis] += (2*velocity);
+            }
+            if(ballBoundary.botRight.axes[axis] > fence->botRight.axes[axis])  
+            {
+                if (axis == 0) 
+                {
+                    //do thing for right side score.
+                }
+                int velocity = ml_ball->velocity.axes[axis] =  -ml_ball->velocity.axes[axis];
+                newPos_ball.axes[axis] += (2*velocity);
+            }	//**< if outside of fence 
+
+
+            
+            
+            //**< left paddle, check right side  
+            else if (
+                    (ballBoundary.topLeft.axes[0] < plBoundary.botRight.axes[0]) && //hitting the side of paddle
+                    (   //*ball top y val < left paddle top */    /*ball top y val  > left paddle bottom */ //top of ball between y valls of paddle 
+                        (ballBoundary.topLeft.axes[1] > plBoundary.topLeft.axes[1] && ballBoundary.topLeft.axes[1] < plBoundary.botRight.axes[1]) ||
+                        //*ball bottom y val < left paddle top */   /*ball bottom y val  > left paddle bottom */  
+                        (ballBoundary.botRight.axes[1] > plBoundary.topLeft.axes[1] && ballBoundary.botRight.axes[1] < plBoundary.botRight.axes[1])  
+                    ) 
+               )
+            {
+                // do a thing for left side paddle collision
+                int velocity = ml_ball->velocity.axes[axis] =  -ml_ball->velocity.axes[axis];
+                newPos_ball.axes[axis] += (2*velocity);
+                break;
+            }
+                        
+            //**< right paddle, check left side 
+            else if (
+                    (ballBoundary.botRight.axes[0] > prBoundary.topLeft.axes[0]) && //hitting the side of paddle
+                    (   //*ball top y val < right paddle top */    /*ball top y val  > right paddle bottom */ //top of ball between y valls of paddle 
+                        (ballBoundary.topLeft.axes[1] > prBoundary.topLeft.axes[1] && ballBoundary.topLeft.axes[1] < prBoundary.botRight.axes[1]) ||
+                        //*ball bottom y val < right paddle top */   /*ball bottom y val  > right paddle bottom */  
+                        (ballBoundary.botRight.axes[1] > prBoundary.topLeft.axes[1] && ballBoundary.botRight.axes[1] < prBoundary.botRight.axes[1])  
+                    ) 
+               )
+            {
+                // do a thing for left side paddle collision
+                int velocity = ml_ball->velocity.axes[axis] =  -ml_ball->velocity.axes[axis];
+                newPos_ball.axes[axis] += (2*velocity);
+                break;
+            }
+	   
+        } /**< for axis */
+        ml_ball->layer->posNext = newPos_ball;
+    } /**< for ml_ball */
 }
 
 
-u_int bgColor = COLOR_BLUE;     /**< The background color */
+u_int bgColor = COLOR_BLACK;     /**< The background color */
 int redrawScreen = 1;           /**< Boolean for whether screen needs to be redrawn */
 
 Region fieldFence;		/**< fence around playing field  */
@@ -171,19 +247,19 @@ movePaddles(){
     unsigned int sw = p2sw_read();
     if(!(BIT0 & sw)){
         movLayerDraw(&ml_plU, &layerPl);  /** So, of course you have to draw the layer before you can advance the screen */
-        mlAdvance(&ml_plU, &fieldFence, STOP);
+        mlPaddleAdvance(&ml_plU, &fieldFence);
     }
     if(!(BIT1 & sw)){
-        movLayerDraw(&ml_plD, &layerPl);  /** So, of course you have to draw the layer before you can advance the screen */
-        mlAdvance(&ml_plD, &fieldFence, STOP);
+        movLayerDraw(&ml_plD, &layerPl);  
+        mlPaddleAdvance(&ml_plD, &fieldFence);
     }
     if(!(BIT2 & sw)){
-        movLayerDraw(&ml_prU, &layerPl);  /** So, of course you have to draw the layer before you can advance the screen */
-        mlAdvance(&ml_prU, &fieldFence, STOP);
+        movLayerDraw(&ml_prU, &layerPl);  
+        mlPaddleAdvance(&ml_prU, &fieldFence);
     }
     if(!(BIT3 & sw)){
-        movLayerDraw(&ml_prD, &layerPl);  /** So, of course you have to draw the layer before you can advance the screen */
-        mlAdvance(&ml_prD, &fieldFence, STOP);
+        movLayerDraw(&ml_prD, &layerPl);  
+        mlPaddleAdvance(&ml_prD, &fieldFence);
     }
     
 }
@@ -233,7 +309,7 @@ void wdt_c_handler()
   P1OUT |= GREEN_LED;		      /**< Green LED on when cpu on */
   count ++;
   if (count == 15) {
-    mlAdvance(&ml_ball, &fieldFence, REV);
+    mlBallAdvance(&ml_ball, &ml_plU, &ml_prU, &fieldFence);
     redrawScreen = 1;
     count = 0;
   } 
