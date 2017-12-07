@@ -22,6 +22,7 @@ BIT0:   .byte 0x01 ; define BIT0
 
 
         .data
+movaPaddles:
         sub #6, R1 ; make space for sp and r12
 
         mov R12, 0(R1) ; save r12 
