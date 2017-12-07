@@ -10,8 +10,9 @@ AS              = msp430-elf-gcc -mmcu=${CPU} -c
 all:pong.elf
 
 #additional rules for files
-pong.elf: ${COMMON_OBJECTS} pong.o buzzer.o wdt_handler.o stateMachines.o movePaddles.o
+pong.elf: ${COMMON_OBJECTS} pong.o buzzer.o wdt_handler.o stateMachines.o movePaddles.o 
 	${CC} ${CFLAGS} ${LDFLAGS} -o $@ $^ -lTimer -lLcd -lShape -lCircle -lp2sw
+
 
 load: pong.elf
 	mspdebug rf2500 "prog $^"

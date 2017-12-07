@@ -16,7 +16,7 @@
 #include "pong.h"
 #include "buzzer.h"
 #include "stateMachines.h"
-#include "movePaddles.s"
+#include "movePaddles.h"
 
 #define GREEN_LED BIT6
 
@@ -451,7 +451,8 @@ void main()
     redrawScreen = 0;
     movLayerDraw(&ml_ball, &layerBall);
     scoreDraw();
-    movePaddlesC();
+    //movePaddlesC();
+    movePaddles();
     buzzer_set_period(0);
   }
 }
