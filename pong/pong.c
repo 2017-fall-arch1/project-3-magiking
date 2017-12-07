@@ -23,6 +23,7 @@
 
 #define DELAY 500000
 
+/* Sounds for collisions */
 #define L_P_PERIOD 3500
 #define L_F_PERIOD 1000
 #define R_P_PERIOD 4000
@@ -137,7 +138,9 @@ void movLayerDraw(MovLayer *movLayers, Layer *layers)
 }	  
 
 
-
+/*
+ * Draws the score on the playing screen
+ */
 void
 scoreDraw()
 {
@@ -149,6 +152,10 @@ scoreDraw()
     drawChar5x7(screenWidth-20, 1, pr_score_string[0], COLOR_YELLOW, COLOR_BLACK);
 }
 
+/*
+ * sets s to char representation of n
+ * from k&r itoa
+ */
 void
 getScoreChar(int n, char s[])
 {
@@ -163,10 +170,14 @@ getScoreChar(int n, char s[])
    if (sign < 0)
        s[i++] = '-';
    s[i] = '\0';
-   //reverse(s); /* not using b/c score is single digit */
 }
 
 
+/** Advances the paddle within a fence
+ *  
+ *  \param ml The moving shape to be advanced
+ *  \param fence The region which will serve as a boundary for ml
+ */
 void
 mlPaddleAdvance(MovLayer *ml, Region *fence)
 {
@@ -190,8 +201,6 @@ mlPaddleAdvance(MovLayer *ml, Region *fence)
     } /**< for ml */
 
 }
-//Region fence = {{10,30}, {SHORT_EDGE_PIXELS-10, LONG_EDGE_PIXELS-10}}; /**< Create a fence region */
-//
 
 /** Advances the ball within a fence
  *  
@@ -226,7 +235,7 @@ void mlBallAdvance(MovLayer *ml_ball, MovLayer *ml_plU, MovLayer *ml_prU, Region
             {
                 if (axis == 0)         /**< only care about left/right wall*/
                 {
-                    //do thing for left side score.
+                    //if win
 		    if (++pr_score == MAX_SCORE)
 		    {
 			/* draw pr winner */
@@ -234,9 +243,7 @@ void mlBallAdvance(MovLayer *ml_ball, MovLayer *ml_plU, MovLayer *ml_prU, Region
                         winscreen();
 			int velocity = ml_ball->velocity.axes[axis] =  -ml_ball->velocity.axes[axis];
 			newPos_ball.axes[axis] += (2*velocity);
-			//state_advance();
 			break;
-			//break;
 		    }
 
                     buzzer_set_period(L_F_PERIOD);
@@ -257,7 +264,6 @@ void mlBallAdvance(MovLayer *ml_ball, MovLayer *ml_plU, MovLayer *ml_prU, Region
                         winscreen();
 			int velocity = ml_ball->velocity.axes[axis] =  -ml_ball->velocity.axes[axis];
 			newPos_ball.axes[axis] += (2*velocity);
-			//state_advance();
 			break;
 		    }
                     buzzer_set_period(R_F_PERIOD);
@@ -318,7 +324,7 @@ Region fieldFence;		/**< fence around playing field  */
  * Reads switch inputs and move's paddles accordingly
  */
 void
-movePaddles(){
+movePaddlesC(){
     unsigned int sw = p2sw_read();
     if(!(BIT0 & sw)){
         movLayerDraw(&ml_plU, &layerPl);  /** So, of course you have to draw the layer before you can advance the screen */
@@ -382,6 +388,7 @@ startscreen()
 
 /**
  * Draw win screen
+ * Shows winning player's name
  */
 void
 winscreen()
@@ -393,17 +400,12 @@ winscreen()
     for(;;){	
 	if(!(( BIT0 | BIT1 ) & P2IN)){
 	    pl_score = pr_score = 0;
-	    //state_advance();
 	    break;
 	}
     }
-    //Vec2 newPos_ball = {(screenWidth/2)+10, (screenHeight/2)+5};
-    //&ml_ball->layer->posNext = newPos_ball;
-    clearScreen(COLOR_BLACK);
+    clearScreen(COLOR_BLACK); /* clear screen and redraw shapes */
     layerDraw(&layerBall);
     scoreDraw();
-    //main();
-    //maybe color screen black again?
 }
 u_int bgColor = COLOR_BLACK;     /**< The background color */
 int redrawScreen = 1;           /**< Boolean for whether screen needs to be redrawn */
@@ -448,7 +450,7 @@ void main()
     redrawScreen = 0;
     movLayerDraw(&ml_ball, &layerBall);
     scoreDraw();
-    movePaddles();
+    movePaddlesC();
     buzzer_set_period(0);
   }
 }
@@ -461,7 +463,6 @@ void wdt_c_handler()
   count ++;
   if (count == 15) {
     mlBallAdvance(&ml_ball, &ml_plU, &ml_prU, &fieldFence);
-    /* if (START || WIN) & p2sw_read()*/
     redrawScreen = 1;
     count = 0;
   } 
