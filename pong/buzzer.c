@@ -23,7 +23,7 @@ void buzzer_init()
     P2SEL |= BIT6;
     P2DIR = BIT6;		/* enable output to speaker (P2.6) */
 
-    buzzer_advance_frequency();	/* start buzzing!!! */
+    
 }
 
 void buzzer_advance_frequency() 

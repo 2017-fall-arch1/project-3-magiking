@@ -14,8 +14,18 @@
 #include <shape.h>
 #include <abCircle.h>
 #include "pong.h"
+#include "buzzer.h"
 
 #define GREEN_LED BIT6
+
+#define MAX_SCORE 5
+
+#define DELAY 500000
+
+#define L_P_PERIOD 3500
+#define L_F_PERIOD 1000
+#define R_P_PERIOD 4000
+#define R_F_PERIOD 1500
 
 
 AbRect ball    = {abRectGetBounds, abRectCheck, {4,4}}; /**< 10x10 rectangle */
@@ -120,6 +130,41 @@ void movLayerDraw(MovLayer *movLayers, Layer *layers)
   } // for moving layer being updated
 }	  
 
+
+int pl_score = 0;
+char pl_score_string[1];
+int pr_score = 0;
+char pr_score_string[1];
+
+void
+scoreDraw()
+{
+    /* left */
+    getScoreChar(pl_score, pl_score_string);
+    drawChar5x7(20, 1, pl_score_string[0], COLOR_YELLOW, COLOR_BLACK);
+    /* right */
+    getScoreChar(pr_score, pr_score_string);
+    drawChar5x7(screenWidth-20, 1, pr_score_string[0], COLOR_YELLOW, COLOR_BLACK);
+}
+
+void
+getScoreChar(int n, char s[])
+{
+   int i, sign;
+
+   if ((sign = n) <0) /* record sign */
+       n = -n;
+   i=0;
+   do{
+       s[i++] = n % 10 + '0';
+   } while ((n /= 10) >0);
+   if (sign < 0)
+       s[i++] = '-';
+   s[i] = '\0';
+   //reverse(s); /* not using b/c score is single digit */
+}
+
+
 void
 mlPaddleAdvance(MovLayer *ml, Region *fence)
 {
@@ -144,6 +189,7 @@ mlPaddleAdvance(MovLayer *ml, Region *fence)
 
 }
 //Region fence = {{10,30}, {SHORT_EDGE_PIXELS-10, LONG_EDGE_PIXELS-10}}; /**< Create a fence region */
+//
 
 /** Advances the ball within a fence
  *  
@@ -179,6 +225,9 @@ void mlBallAdvance(MovLayer *ml_ball, MovLayer *ml_plU, MovLayer *ml_prU, Region
                 if (axis == 0)         /**< only care about left/right wall*/
                 {
                     //do thing for left side score.
+		    pr_score = (pr_score + 1) % MAX_SCORE;
+                    buzzer_set_period(L_F_PERIOD);
+                    __delay_cycles(DELAY); //leave the buzzer on
                 }
                 int velocity = ml_ball->velocity.axes[axis] =  -ml_ball->velocity.axes[axis];
                 newPos_ball.axes[axis] += (2*velocity);
@@ -188,6 +237,9 @@ void mlBallAdvance(MovLayer *ml_ball, MovLayer *ml_plU, MovLayer *ml_prU, Region
                 if (axis == 0) 
                 {
                     //do thing for right side score.
+		    pl_score = (pl_score + 1) % MAX_SCORE;
+                    buzzer_set_period(R_F_PERIOD);
+                    __delay_cycles(DELAY); //leave the buzzer on
                 }
                 int velocity = ml_ball->velocity.axes[axis] =  -ml_ball->velocity.axes[axis];
                 newPos_ball.axes[axis] += (2*velocity);
@@ -207,6 +259,8 @@ void mlBallAdvance(MovLayer *ml_ball, MovLayer *ml_plU, MovLayer *ml_prU, Region
                )
             {
                 // do a thing for left side paddle collision
+                buzzer_set_period(L_P_PERIOD);
+                __delay_cycles(DELAY); //leave the buzzer on
                 int velocity = ml_ball->velocity.axes[axis] =  -ml_ball->velocity.axes[axis];
                 newPos_ball.axes[axis] += (2*velocity);
                 break;
@@ -223,6 +277,8 @@ void mlBallAdvance(MovLayer *ml_ball, MovLayer *ml_plU, MovLayer *ml_prU, Region
                )
             {
                 // do a thing for left side paddle collision
+                buzzer_set_period(R_P_PERIOD);
+                __delay_cycles(DELAY); //leave the buzzer on
                 int velocity = ml_ball->velocity.axes[axis] =  -ml_ball->velocity.axes[axis];
                 newPos_ball.axes[axis] += (2*velocity);
                 break;
@@ -233,9 +289,6 @@ void mlBallAdvance(MovLayer *ml_ball, MovLayer *ml_plU, MovLayer *ml_prU, Region
     } /**< for ml_ball */
 }
 
-
-u_int bgColor = COLOR_BLACK;     /**< The background color */
-int redrawScreen = 1;           /**< Boolean for whether screen needs to be redrawn */
 
 Region fieldFence;		/**< fence around playing field  */
 
@@ -264,6 +317,10 @@ movePaddles(){
     
 }
 
+u_int bgColor = COLOR_BLACK;     /**< The background color */
+int redrawScreen = 1;           /**< Boolean for whether screen needs to be redrawn */
+
+
 /** Initializes everything, enables interrupts and green LED, 
  *  and handles the rendering for the screen
  */
@@ -274,6 +331,7 @@ void main()
 
   configureClocks();
   lcd_init();
+  buzzer_init();
   shapeInit();
   p2sw_init(15);                /** initialize all switches */
 
@@ -282,6 +340,7 @@ void main()
   layerInit(&layerBall);
   layerDraw(&layerBall);
 
+  scoreDraw();
 
   layerGetBounds(&fieldLayer, &fieldFence);
 
@@ -292,13 +351,15 @@ void main()
 
   for(;;) { 
     while (!redrawScreen) { /**< Pause CPU if screen doesn't need updating */ 
-      movePaddles();
       P1OUT &= ~GREEN_LED;    /**< Green led off witHo CPU */
       or_sr(0x10);	      /**< CPU OFF */
     }
     P1OUT |= GREEN_LED;       /**< Green led on when CPU on */
     redrawScreen = 0;
     movLayerDraw(&ml_ball, &layerBall);
+    scoreDraw();
+    movePaddles();
+    buzzer_set_period(0);
   }
 }
 
